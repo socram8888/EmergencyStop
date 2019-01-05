@@ -24,8 +24,8 @@
 // Enable interrupt in for sending data.
 #define USB_CFG_HAVE_INTRIN_ENDPOINT 1
 
-// Set poll speed to 50ms
-#define USB_CFG_INTR_POLL_INTERVAL 50
+// Set poll speed to 10ms
+#define USB_CFG_INTR_POLL_INTERVAL 10
 
 // USB is not self-powered
 #define USB_CFG_IS_SELF_POWERED 0
@@ -68,6 +68,6 @@
 #define USB_CFG_INTERFACE_PROTOCOL 0
 
 // HID report descriptor length
-#define USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH    35
+#define USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH 63
 
 #endif
