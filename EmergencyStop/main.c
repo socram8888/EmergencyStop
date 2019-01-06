@@ -61,7 +61,7 @@ uint8_t ticksUntilResend = 0;
 uint8_t debounceTicks = 0;
 bool sendReport = false;
 
-uint8_t report[6];
+uint8_t report[8] = {0};
 
 #define DEBOUNCE_TICKS 5
 
@@ -106,7 +106,7 @@ int main(void) {
     usbDeviceConnect();
 
 	// Configure button input
-	BUTTON_PORT &= ~_BV(BUTTON_BIT);
+	BUTTON_DDR &= ~_BV(BUTTON_BIT);
 	BUTTON_PORT |= _BV(BUTTON_BIT);
 
 	// Setup timer 0
@@ -121,19 +121,16 @@ int main(void) {
 
 		if (sendReport && usbInterruptIsReady()) {
 			sendReport = false;
-			ticksUntilResend = 0;
-
-			// Reserved byte
-			report[1] = 0x00;
-
-			// We'll be pressing only a single key, so set the rest of the array to zero
-			report[3] = report[4] = report[5] = 0x00;
 
 			if (debounceTicks > 0) {
-				report[2] = 0x0F;
+				report[0] = _BV(3); // LEFT_GUI (Windows) key
+				report[2] = 0x0F; // "L" key
 			} else {
+				report[0] = 0x00;
 				report[2] = 0x00;
 			}
+
+			usbSetInterrupt(report, sizeof(report));
 		}
     }
 }
@@ -170,7 +167,7 @@ usbMsgLen_t usbFunctionSetup(uchar data[8]) {
 }
 
 uchar usbFunctionWrite(uchar *data, uchar len) {
-	idleRate = data[0];
+	ledStatus = data[0];
 	return 1;
 }
 
@@ -182,6 +179,9 @@ ISR(TIMER0_COMPA_vect) {
 	sei();
 
 	if (!(BUTTON_PIN & _BV(BUTTON_BIT))) {
+		if (debounceTicks == 0) {
+			sendReport = true;
+		}
 		debounceTicks = DEBOUNCE_TICKS;
 	} else if (debounceTicks > 0) {
 		debounceTicks--;
@@ -190,10 +190,11 @@ ISR(TIMER0_COMPA_vect) {
 		}
 	}
 
-	if (idleRate > 0 && debounceTicks > 0) {
+	if (!sendReport && idleRate > 0) {
 		// Idle rate considers one tick to be 4ms instead of our 8ms
 		ticksUntilResend += 2;
 		if (ticksUntilResend >= idleRate) {
+			ticksUntilResend = 0;
 			sendReport = true;
 		}
 	}
