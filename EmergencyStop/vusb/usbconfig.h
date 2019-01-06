@@ -38,25 +38,17 @@
 
 /* -------------------------- Device Description --------------------------- */
 
-// Shared USB keyboard PID for serial discrimination,
+// Shared USB joystick PID for serial discrimination,
 // from Van Ooijen Technische Informatica
 #define USB_CFG_VENDOR_ID 0xC0, 0x16
-#define USB_CFG_DEVICE_ID 0xDB, 0x27
+#define USB_CFG_DEVICE_ID 0xDC, 0x27
 
 // Device version: 1.0
 #define USB_CFG_DEVICE_VERSION 0x00, 0x01
 
-// Vendor name ("https://orca.pet")
-//#define USB_CFG_VENDOR_NAME     'h','t','t','p','s',':','/','/','o','r','c','a','.','p','e','t'
-//#define USB_CFG_VENDOR_NAME_LEN 16
-
-// Device name ("Emergency stop button")
-//#define USB_CFG_DEVICE_NAME     'E','m','e','r','g','e','n','c','y',' ','s','t','o','p',' ','b','u','t','t','o','n'
-//#define USB_CFG_DEVICE_NAME_LEN 21
-
 // Device serial
-//#define USB_CFG_SERIAL_NUMBER     'N', 'o', 'n', 'e'
-//#define USB_CFG_SERIAL_NUMBER_LEN 0
+#define USB_CFG_SERIAL_NUMBER 'o', 'r', 'c', 'a', '.', 'p', 'e', 't', ':', 'E', 'm', 'e', 'r', 'g', 'e', 'n', 'c', 'y', ' ', 's', 't', 'o', 'p'
+#define USB_CFG_SERIAL_NUMBER_LEN 23
 
 // No device class - deferred to interface class
 #define USB_CFG_DEVICE_CLASS    0
@@ -68,6 +60,6 @@
 #define USB_CFG_INTERFACE_PROTOCOL 0
 
 // HID report descriptor length
-#define USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH 63
+#define USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH 47
 
 #endif

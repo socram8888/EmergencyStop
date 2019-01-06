@@ -5,48 +5,40 @@
  * Author : Marcos
  */ 
 
+#include <avr/eeprom.h>
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 #include <avr/wdt.h>
-#include <assert.h>
-#include <util/delay.h>
 #include <stdbool.h>
+#include <string.h>
+#include <util/delay.h>
 #include "vusb/usbconfig.h"
 #include "vusb/usbdrv.h"
 
 const PROGMEM char usbHidReportDescriptor[] = {
     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
-    0x09, 0x06,                    // USAGE (Keyboard)
+    0x09, 0x04,                    // USAGE (Joystick)
     0xa1, 0x01,                    // COLLECTION (Application)
-    0x05, 0x07,                    //   USAGE_PAGE (Keyboard)
-    0x19, 0xe0,                    //   USAGE_MINIMUM (Keyboard LeftControl)
-    0x29, 0xe7,                    //   USAGE_MAXIMUM (Keyboard Right GUI)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
-    0x75, 0x01,                    //   REPORT_SIZE (1)
-    0x95, 0x08,                    //   REPORT_COUNT (8)
-    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0x95, 0x01,                    //   REPORT_COUNT (1)
-    0x75, 0x08,                    //   REPORT_SIZE (8)
-    0x81, 0x03,                    //   INPUT (Cnst,Var,Abs)
-    0x95, 0x05,                    //   REPORT_COUNT (5)
-    0x75, 0x01,                    //   REPORT_SIZE (1)
-    0x05, 0x08,                    //   USAGE_PAGE (LEDs)
-    0x19, 0x01,                    //   USAGE_MINIMUM (Num Lock)
-    0x29, 0x05,                    //   USAGE_MAXIMUM (Kana)
-    0x91, 0x02,                    //   OUTPUT (Data,Var,Abs)
-    0x95, 0x01,                    //   REPORT_COUNT (1)
-    0x75, 0x03,                    //   REPORT_SIZE (3)
-    0x91, 0x03,                    //   OUTPUT (Cnst,Var,Abs)
-    0x95, 0x06,                    //   REPORT_COUNT (6)
-    0x75, 0x08,                    //   REPORT_SIZE (8)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x25, 0x65,                    //   LOGICAL_MAXIMUM (101)
-    0x05, 0x07,                    //   USAGE_PAGE (Keyboard)
-    0x19, 0x00,                    //   USAGE_MINIMUM (Reserved (no event indicated))
-    0x29, 0x65,                    //   USAGE_MAXIMUM (Keyboard Application)
-    0x81, 0x00,                    //   INPUT (Data,Ary,Abs)
+    0x85, 0x01,                    //     REPORT_ID (1)
+    0x05, 0x09,                    //     USAGE_PAGE (Button)
+    0x09, 0x01,                    //     USAGE (Button 1)
+    0x15, 0x00,                    //     LOGICAL_MINIMUM (0)
+    0x25, 0x01,                    //     LOGICAL_MAXIMUM (1)
+    0x75, 0x01,                    //     REPORT_SIZE (1)
+    0x95, 0x01,                    //     REPORT_COUNT (1)
+    0x81, 0x02,                    //     INPUT (Data,Var,Abs)
+    0x95, 0x07,                    //     REPORT_COUNT (7)
+    0x75, 0x01,                    //     REPORT_SIZE (1)
+    0x81, 0x03,                    //     INPUT (Cnst,Var,Abs)
+    0x85, 0x02,                    //     REPORT_ID (2)
+    0x06, 0x00, 0xff,              //     USAGE_PAGE (Vendor Defined Page 1)
+    0x09, 0x01,                    //     USAGE (Vendor Usage 1)
+    0x15, 0x00,                    //     LOGICAL_MINIMUM (0)
+    0x26, 0xff, 0x00,              //     LOGICAL_MAXIMUM (255)
+    0x75, 0x08,                    //     REPORT_SIZE (8)
+    0x95, 0x04,                    //     REPORT_COUNT (4)
+    0xb1, 0x02,                    //   FEATURE (Data,Var,Abs)
     0xc0                           // END_COLLECTION
 };
 
@@ -60,8 +52,24 @@ uint8_t idleRate = 500 / 4;
 uint8_t ticksUntilResend = 0;
 uint8_t debounceTicks = 0;
 bool sendReport = false;
+bool updateSerial = false;
 
-uint8_t report[8] = {0};
+#define REPORT_INPUT  0x0100
+#define REPORT_OUTPUT 0x0200
+
+#define REPORT_BUTTON 1
+#define REPORT_SERIAL 2
+
+struct {
+	uint8_t reportId;
+	uint8_t buttons;
+} buttonReport;
+
+struct {
+	uint8_t reportId;
+	uint8_t serial[4];
+} serialReport;
+uint8_t serialReportPos;
 
 #define DEBOUNCE_TICKS 5
 
@@ -97,6 +105,17 @@ void setupTimer0() {
 int main(void) {
 	wdt_enable(WDTO_1S);
 
+	// Configure button input
+	BUTTON_DDR &= ~_BV(BUTTON_BIT);
+	BUTTON_PORT |= _BV(BUTTON_BIT);
+
+	// Initialize button report
+	buttonReport.reportId = REPORT_BUTTON;
+
+	// Initialize serial report
+	serialReport.reportId = REPORT_SERIAL;
+	eeprom_read_block(serialReport.serial, 0x0000, 4);
+
 	// Initialize USB
     usbInit();
 
@@ -104,10 +123,6 @@ int main(void) {
     usbDeviceDisconnect();
 	_delay_ms(250);
     usbDeviceConnect();
-
-	// Configure button input
-	BUTTON_DDR &= ~_BV(BUTTON_BIT);
-	BUTTON_PORT |= _BV(BUTTON_BIT);
 
 	// Setup timer 0
 	setupTimer0();
@@ -121,16 +136,13 @@ int main(void) {
 
 		if (sendReport && usbInterruptIsReady()) {
 			sendReport = false;
+			buttonReport.buttons = debounceTicks > 0 ? 0x01 : 0x00;
+			usbSetInterrupt((uchar *) &buttonReport, sizeof(buttonReport));
+		}
 
-			if (debounceTicks > 0) {
-				report[0] = _BV(3); // LEFT_GUI (Windows) key
-				report[2] = 0x0F; // "L" key
-			} else {
-				report[0] = 0x00;
-				report[2] = 0x00;
-			}
-
-			usbSetInterrupt(report, sizeof(report));
+		if (updateSerial && eeprom_is_ready()) {
+			updateSerial = false;
+			eeprom_update_block(serialReport.serial, 0x0000, 4);
 		}
     }
 }
@@ -144,11 +156,28 @@ usbMsgLen_t usbFunctionSetup(uchar data[8]) {
 
 	switch (rq->bRequest) {
 		case USBRQ_HID_GET_REPORT:
-			usbMsgPtr = report;
-			return 6;
+			switch (rq->wValue.bytes[0]) {
+				case REPORT_BUTTON:
+					if (rq->wLength.word != sizeof(buttonReport)) {
+						return 0;
+					}
+					
+					usbMsgPtr = (uchar *) &buttonReport;
+					return sizeof(buttonReport);
+
+				case REPORT_SERIAL:
+					if (rq->wLength.word != sizeof(serialReport)) {
+						return 0;
+					}
+
+					usbMsgPtr = (uchar *) &serialReport;
+					return sizeof(serialReport);
+			}
+
+			return 0;
 
 		case USBRQ_HID_SET_REPORT:
-			if (rq->wLength.word == 1) {
+			if (rq->wValue.bytes[0] == REPORT_SERIAL && rq->wLength.word == sizeof(serialReport)) {
 				return USB_NO_MSG;
 			}
 
@@ -167,8 +196,15 @@ usbMsgLen_t usbFunctionSetup(uchar data[8]) {
 }
 
 uchar usbFunctionWrite(uchar *data, uchar len) {
-	ledStatus = data[0];
-	return 1;
+	memcpy(serialReport.serial + serialReportPos, data, len);
+	serialReportPos += len;
+
+	if (serialReportPos == sizeof(serialReport)) {
+		updateSerial = true;
+		return 1;
+	}
+
+	return 0;
 }
 
 ISR(TIMER0_COMPA_vect) {
