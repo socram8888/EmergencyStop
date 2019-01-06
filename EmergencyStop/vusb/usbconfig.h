@@ -44,8 +44,8 @@
 #define USB_CFG_DEVICE_VERSION 0x00, 0x01
 
 // Device serial
-#define USB_CFG_SERIAL_NUMBER 'o', 'r', 'c', 'a', '.', 'p', 'e', 't', ':', 'E', 'm', 'e', 'r', 'g', 'e', 'n', 'c', 'y', ' ', 's', 't', 'o', 'p'
-#define USB_CFG_SERIAL_NUMBER_LEN 23
+#define USB_CFG_SERIAL_NUMBER     'o', 'r', 'c', 'a', '.', 'p', 'e', 't', ':', 'E', 'm', 'e', 'r', 'g', 'e', 'n', 'c', 'y', ' ', 's', 't', 'o', 'p', ':', '0', '0', '0', '0', '0', '0', '0', '0'
+#define USB_CFG_SERIAL_NUMBER_LEN 31
 
 // No device class - deferred to interface class
 #define USB_CFG_DEVICE_CLASS    0
