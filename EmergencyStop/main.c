@@ -178,6 +178,7 @@ usbMsgLen_t usbFunctionSetup(uchar data[8]) {
 
 		case USBRQ_HID_SET_REPORT:
 			if (rq->wValue.bytes[0] == REPORT_SERIAL && rq->wLength.word == sizeof(serialReport)) {
+				serialReportPos = 0;
 				return USB_NO_MSG;
 			}
 
@@ -196,7 +197,7 @@ usbMsgLen_t usbFunctionSetup(uchar data[8]) {
 }
 
 uchar usbFunctionWrite(uchar *data, uchar len) {
-	memcpy(serialReport.serial + serialReportPos, data, len);
+	memcpy((uint8_t *) &serialReport + serialReportPos, data, len);
 	serialReportPos += len;
 
 	if (serialReportPos == sizeof(serialReport)) {
