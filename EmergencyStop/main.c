@@ -15,7 +15,7 @@
 
 const PROGMEM char usbHidReportDescriptor[] = {
     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
-    0x09, 0x04,                    // USAGE (Joystick)
+    0x09, 0x05,                    // USAGE (Game Pad)
     0xa1, 0x01,                    // COLLECTION (Application)
     0x05, 0x09,                    //     USAGE_PAGE (Button)
     0x09, 0x01,                    //     USAGE (Button 1)
