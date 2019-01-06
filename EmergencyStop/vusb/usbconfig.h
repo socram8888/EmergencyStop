@@ -33,9 +33,6 @@
 // About 30mA of power consumption
 #define USB_CFG_MAX_BUS_POWER 30
 
-// Implement usbFunctionWrite for replying to requests
-#define USB_CFG_IMPLEMENT_FN_WRITE 1
-
 /* -------------------------- Device Description --------------------------- */
 
 // Shared USB joystick PID for serial discrimination,
@@ -60,6 +57,6 @@
 #define USB_CFG_INTERFACE_PROTOCOL 0
 
 // HID report descriptor length
-#define USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH 47
+#define USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH 27
 
 #endif
