@@ -1,8 +1,8 @@
 
-#include "HID.au3"
+#include "WinAPIHID.au3"
 
 Func _EmergencyButton_Open()
-   $aDevices = _HIDListDevices()
+   $aDevices = _HID_ListDevices()
 
    For $i = 0 To UBound($aDevices) - 1
 	  If Not StringInStr($aDevices[$i], "vid_16c0&pid_27dc") Then
@@ -34,9 +34,26 @@ Func _EmergencyButton_Pressed($hButton)
    DllStructSetData($tReport, "reportId", 0)
 
    If Not _HID_GetInputReport($hButton, $tReport) Then
-	  MsgBox($MB_ICONERROR, "Emergency button", "I/O error (is device still connected?)")
-	  Exit(1)
+	  Return SetError(1, 0, -1)
    EndIf
 
    Return DllStructGetData($tReport, "status")
+EndFunc
+
+Func _EmergencyButton_Close($hButton)
+   _WinAPI_CloseHandle($hButton)
+EndFunc
+
+Func _EmergencyButton_WaitStatus($iWanted)
+   While True
+	  $hButton = _EmergencyButton_Open()
+	  If $hButton <> 0 Then
+		 $iPressed = _EmergencyButton_Pressed($hButton)
+		 _EmergencyButton_Close($hButton)
+		 If $iPressed = $iWanted Then
+			Return
+		 EndIf
+	  EndIf
+	  Sleep(100)
+   WEnd
 EndFunc
